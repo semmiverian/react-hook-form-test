@@ -5,6 +5,7 @@ A modern, professional React application built with TypeScript and React Hook Fo
 ## Features
 
 - **Dynamic Form Management**: Add or remove items dynamically using React Hook Form's `useFieldArray`
+- **Context-Based Architecture**: Demonstrates FormProvider and custom context for sharing form state across nested components
 - **Type-Safe**: Built with TypeScript for robust type checking
 - **Form Validation**: Real-time field validation with user-friendly error messages
 - **Beautiful UI**: Modern gradient design with smooth animations
@@ -30,18 +31,123 @@ Each item contains:
 - **Quantity** (number) - Required, minimum 1
 - **Price** (number) - Required, must be greater than 0
 
+## Architecture
+
+This application demonstrates **how to initialize `useFieldArray` in one component (Component A) and access it from nested child/grandchild components (Component B)** using React Context.
+
+### Component Hierarchy
+
+```
+DynamicForm (uses FormProvider)
+├── PersonalInfoSection (uses useFormContext)
+└── ItemsSection (Component A - provides ItemsContext)
+    ├── AddItemButton (uses useItemsArray for append)
+    └── ItemsList (Component B - uses useItemsArray for fields & remove)
+```
+
+### Key Architectural Patterns
+
+#### 1. FormProvider for Form Context
+
+The main form uses `FormProvider` to share form methods with all nested components:
+
+```typescript
+// DynamicForm.tsx
+const methods = useForm<FormData>({ /* ... */ });
+
+return (
+  <FormProvider {...methods}>
+    <form onSubmit={methods.handleSubmit(onSubmit)}>
+      <PersonalInfoSection />
+      <ItemsSection />
+    </form>
+  </FormProvider>
+);
+```
+
+#### 2. Custom Context for useFieldArray
+
+**Component A (ItemsProvider)** initializes `useFieldArray` and provides it via context:
+
+```typescript
+// contexts/ItemsContext.tsx
+export function ItemsProvider({ children }: { children: ReactNode }) {
+  const { control } = useFormContext<FormData>();
+
+  // Initialize useFieldArray here
+  const fieldArrayMethods = useFieldArray({
+    control,
+    name: 'items',
+  });
+
+  return (
+    <ItemsContext.Provider value={fieldArrayMethods}>
+      {children}
+    </ItemsContext.Provider>
+  );
+}
+
+export function useItemsArray() {
+  const context = useContext(ItemsContext);
+  if (!context) {
+    throw new Error('useItemsArray must be used within ItemsProvider');
+  }
+  return context;
+}
+```
+
+#### 3. Nested Components Access Field Array
+
+**Component B (ItemsList)** and any other nested components can access the field array:
+
+```typescript
+// components/ItemsList.tsx
+function ItemsList() {
+  const { register, formState: { errors } } = useFormContext<FormData>();
+
+  // Access fields and remove from Component A's context
+  const { fields, remove } = useItemsArray();
+
+  return (
+    <div>
+      {fields.map((field, index) => (
+        <div key={field.id}>
+          <input {...register(`items.${index}.itemName`)} />
+          <button onClick={() => remove(index)}>Remove</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+**AddItemButton** component demonstrates accessing `append`:
+
+```typescript
+function AddItemButton() {
+  const { append } = useItemsArray();
+
+  return (
+    <button onClick={() => append({ itemName: '', quantity: 1, price: 0 })}>
+      + Add Item
+    </button>
+  );
+}
+```
+
+### Benefits of This Pattern
+
+- **Separation of Concerns**: Each component has a single responsibility
+- **Reusability**: Components can be easily reused in different forms
+- **Type Safety**: Full TypeScript support throughout the component tree
+- **Flexibility**: Child components at any nesting level can access field array methods
+- **Clean Code**: No prop drilling through multiple component levels
+
 ## Key Features
 
 ### useFieldArray Integration
 
-The application uses React Hook Form's `useFieldArray` hook for managing dynamic item arrays:
-
-```typescript
-const { fields, append, remove } = useFieldArray({
-  control,
-  name: 'items',
-});
-```
+The application uses React Hook Form's `useFieldArray` hook for managing dynamic item arrays, initialized in a parent component (ItemsProvider) and accessible to all nested children via context.
 
 ### Form Validation
 
@@ -83,14 +189,20 @@ npm run build
 
 ```
 src/
-├── App.tsx                    # Main app component with state management
-├── DynamicForm.tsx           # Form component with useFieldArray
-├── SubmissionResults.tsx     # Results display component
-├── types.ts                  # TypeScript type definitions
-├── App.css                   # App-level styles
-├── DynamicForm.css          # Form component styles
-├── SubmissionResults.css    # Results component styles
-└── index.css                # Global styles
+├── App.tsx                         # Main app component with state management
+├── DynamicForm.tsx                 # Form component with FormProvider
+├── SubmissionResults.tsx           # Results display component
+├── types.ts                        # TypeScript type definitions
+├── components/
+│   ├── PersonalInfoSection.tsx     # Personal info fields
+│   ├── ItemsSection.tsx            # Component A - ItemsProvider wrapper
+│   └── ItemsList.tsx               # Component B - Nested child component
+├── contexts/
+│   └── ItemsContext.tsx            # Custom context for useFieldArray
+├── App.css                         # App-level styles
+├── DynamicForm.css                 # Form component styles
+├── SubmissionResults.css           # Results component styles
+└── index.css                       # Global styles
 ```
 
 ## How It Works
@@ -106,7 +218,10 @@ src/
 
 ### Type Safety
 
+All components are fully typed with TypeScript:
+
 ```typescript
+// types.ts
 interface ItemType {
   itemName: string;
   quantity: number;
@@ -118,33 +233,29 @@ interface FormData {
   age: number;
   items: ItemType[];
 }
-```
 
-### Dynamic Item Management
-
-```typescript
-// Add a new item
-const addItem = () => {
-  append({ itemName: '', quantity: 1, price: 0 });
-};
-
-// Remove an item
-const removeItem = (index: number) => {
-  if (fields.length > 1) {
-    remove(index);
-  }
-};
+// ItemsContext.tsx
+type ItemsContextType = UseFieldArrayReturn<FormData, 'items', 'id'>;
 ```
 
 ### Form Submission
 
-All form data (personal info + items array) is combined and passed to the parent component:
+All form data (personal info + items array) is automatically combined by React Hook Form:
 
 ```typescript
 const onSubmit = (data: FormData) => {
+  // data contains: { name, age, items: [...] }
   onSubmitSuccess(data);
 };
 ```
+
+### Alternative Approaches
+
+Besides the custom context approach shown here, there are other ways to share field array state:
+
+1. **Props Drilling**: Pass `fields`, `append`, `remove` as props (good for 1-2 levels)
+2. **Re-calling useFieldArray**: Call `useFieldArray` again in child components with same control and name (works!)
+3. **Custom Context**: Current approach (best for deep nesting)
 
 ## License
 
