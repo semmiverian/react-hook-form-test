@@ -1,50 +1,42 @@
-import { ItemsProvider, useItemsArray } from '../contexts/ItemsContext';
+import { useFormContext, useFieldArray } from 'react-hook-form';
+import type { FormData } from '../types';
 import ItemsList from './ItemsList';
 
 /**
- * Component that uses the append function from the field array
- * This could be Component B or any other nested component
+ * Component A - Initializes useFieldArray
+ * This is where we first call useFieldArray
  */
-function AddItemButton() {
-  const { append } = useItemsArray();
+function ItemsSection() {
+  const { control } = useFormContext<FormData>();
+
+  // Initialize useFieldArray here (Component A)
+  const { append } = useFieldArray({
+    control,
+    name: 'items',
+  });
 
   const addItem = () => {
     append({ itemName: '', quantity: 1, price: 0 });
   };
 
   return (
-    <button
-      type="button"
-      onClick={addItem}
-      className="btn btn-secondary"
-    >
-      + Add Item
-    </button>
-  );
-}
-
-/**
- * Component A - Main items section
- * This wraps children with ItemsProvider (where useFieldArray is initialized)
- * Child components can then access field array methods via useItemsArray hook
- */
-function ItemsSection() {
-  return (
     <div className="form-section">
-      {/*
-        ItemsProvider initializes useFieldArray
-        All nested children can access fields, append, remove via useItemsArray hook
-      */}
-      <ItemsProvider>
-        <div className="section-header">
-          <h2 className="section-title">Order Items</h2>
-          {/* AddItemButton is a child that uses append from context */}
-          <AddItemButton />
-        </div>
+      <div className="section-header">
+        <h2 className="section-title">Order Items</h2>
+        <button
+          type="button"
+          onClick={addItem}
+          className="btn btn-secondary"
+        >
+          + Add Item
+        </button>
+      </div>
 
-        {/* ItemsList is a child/grandchild that uses fields and remove from context */}
-        <ItemsList />
-      </ItemsProvider>
+      {/*
+        ItemsList (Component B) will call useFieldArray AGAIN
+        with the same control and name - React Hook Form handles this!
+      */}
+      <ItemsList />
     </div>
   );
 }

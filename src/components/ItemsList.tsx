@@ -1,22 +1,25 @@
-import { useFormContext } from 'react-hook-form';
-import { useItemsArray } from '../contexts/ItemsContext';
+import { useFormContext, useFieldArray } from 'react-hook-form';
 import type { FormData } from '../types';
 
 /**
  * Component B - Nested child component
- * This demonstrates accessing field array methods from a child/grandchild component
- * Uses useItemsArray hook to get fields, append, and remove from context
+ * This calls useFieldArray AGAIN with the same control and name as Component A
+ * React Hook Form intelligently shares the same state - no context needed!
  */
 function ItemsList() {
   // Access form context for register
   const {
     register,
+    control,
     formState: { errors },
   } = useFormContext<FormData>();
 
-  // Access field array methods from context
-  // These come from Component A (ItemsProvider) where useFieldArray was initialized
-  const { fields, remove } = useItemsArray();
+  // Call useFieldArray AGAIN - same control, same name as Component A
+  // This works! React Hook Form shares the same state automatically
+  const { fields, remove } = useFieldArray({
+    control,
+    name: 'items',
+  });
 
   const removeItem = (index: number) => {
     if (fields.length > 1) {

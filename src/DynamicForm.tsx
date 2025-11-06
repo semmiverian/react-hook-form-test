@@ -12,9 +12,9 @@ interface DynamicFormProps {
  * Main form component
  * - Initializes the form with useForm
  * - Wraps children with FormProvider to share form context
- * - Child components (PersonalInfoSection, ItemsSection) access context via useFormContext
- * - ItemsSection contains ItemsProvider (Component A) which initializes useFieldArray
- * - ItemsList (Component B) accesses field array methods from ItemsProvider context
+ * - Child components access context via useFormContext
+ * - ItemsSection (Component A) calls useFieldArray
+ * - ItemsList (Component B) calls useFieldArray AGAIN - React Hook Form shares state!
  */
 const DynamicForm = ({ onSubmitSuccess }: DynamicFormProps) => {
   // Initialize form methods here
@@ -35,7 +35,7 @@ const DynamicForm = ({ onSubmitSuccess }: DynamicFormProps) => {
     <div className="form-container">
       <h1 className="form-title">Dynamic Order Form</h1>
       <p className="form-subtitle">
-        Demonstrating FormProvider + useFieldArray in nested components
+        Calling useFieldArray twice in different components - they share the same state!
       </p>
 
       {/*
@@ -48,9 +48,9 @@ const DynamicForm = ({ onSubmitSuccess }: DynamicFormProps) => {
           <PersonalInfoSection />
 
           {/*
-            Items Section - Component A
-            - Contains ItemsProvider which initializes useFieldArray
-            - Child components access field array via useItemsArray hook
+            Items Section - Component A (calls useFieldArray)
+            ItemsList - Component B (calls useFieldArray AGAIN)
+            They share the same state automatically!
           */}
           <ItemsSection />
 
